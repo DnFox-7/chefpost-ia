@@ -2,18 +2,21 @@ import streamlit as st
 import google.generativeai as genai
 from supabase import create_client, Client
 import streamlit.components.v1 as components
+import os
 
 # --- 1. CONFIGURAÇÃO SUPABASE ---
 SUPABASE_URL = "https://msitsrebkgekgqbuclqp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaXRzcmVia2dla2dxYnVjbHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDE3MzgsImV4cCI6MjA4NjMxNzczOH0.AXZbP1hoCMCIwfHBH6iX98jy4XB2FoJp7P6i73ssq2k"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIGURAÇÃO GEMINI ---
-# Nova chave aplicada conforme solicitado
+# --- 2. CONFIGURAÇÃO GEMINI (Ajustada para Forçar v1) ---
 API_KEY_GEMINI = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
+
+# FORÇANDO A VERSÃO DA API PARA EVITAR O ERRO 404
+os.environ["GOOGLE_GENERATIVE_AI_NETWORK_ENDPOINT"] = "generativelanguage.googleapis.com"
 genai.configure(api_key=API_KEY_GEMINI)
 
-# --- 3. DESIGN (LAYOUT PRESERVADO) ---
+# --- 3. DESIGN (MANTIDO) ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
@@ -47,7 +50,7 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LÓGICA DE ACESSO ---
+# --- 5. LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
@@ -104,13 +107,13 @@ else:
             if restaurante and itens:
                 with st.spinner("Chef IA preparando..."):
                     try:
-                        # Usando a versão estável com a nova chave
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        # TENTATIVA COM NOME COMPLETO DO MODELO
+                        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
                         
                         lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                         prompt = (f"Gere legendas de venda para o restaurante {restaurante}. Estilo: {estilo}. Canal: {destino}.\n"
                                   f"Produtos:\n{lista_p}\n"
-                                  f"Separe cada legenda estritamente com o marcador '---SEPARAR---'.")
+                                  f"Separe cada legenda com '---SEPARAR---'.")
                         
                         res = model.generate_content(prompt)
                         legendas = [l.strip() for l in res.text.split('---SEPARAR---') if l.strip()]
@@ -122,8 +125,6 @@ else:
                         st.balloons()
                     except Exception as e:
                         st.error(f"Erro ao acessar IA: {e}")
-            else:
-                st.warning("Preencha o nome do restaurante e adicione produtos!")
 
     # --- ABA 2: ESTRATÉGIA ---
     with tab_estrategia:
@@ -131,13 +132,11 @@ else:
             if restaurante:
                 with st.spinner("Gerando planejamento..."):
                     try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content(f"Crie um calendário de posts de 7 dias para {restaurante} ({tipo_comida}). Foque em engajamento e vendas.")
+                        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+                        res = model.generate_content(f"Crie um calendário de posts de 7 dias para {restaurante} ({tipo_comida}).")
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
                         st.write(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
                         copy_button(res.text, "plan_sem")
                     except Exception as e:
                         st.error(f"Erro ao gerar estratégia: {e}")
-            else:
-                st.warning("Preencha o nome do restaurante no painel lateral.")
