@@ -9,10 +9,11 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
+# Nova chave aplicada conforme solicitado
 API_KEY_GEMINI = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
 genai.configure(api_key=API_KEY_GEMINI)
 
-# --- 3. DESIGN (MANTIDO EXATAMENTE COMO VOCÊ QUER) ---
+# --- 3. DESIGN (LAYOUT PRESERVADO) ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
@@ -46,7 +47,7 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LOGIN ---
+# --- 5. LÓGICA DE ACESSO ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
@@ -75,7 +76,7 @@ else:
     # --- 6. PAINEL PRINCIPAL ---
     with st.sidebar:
         st.header("👨‍🍳 Painel")
-        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burguer House")
+        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burger King")
         tipo_comida = st.selectbox("Segmento", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana"])
         st.divider()
         destino = st.selectbox("Canal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
@@ -86,6 +87,7 @@ else:
 
     tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia"])
 
+    # --- ABA 1: GERADOR ---
     with tab_gerador:
         num = st.number_input("Quantos produtos?", 1, 10, 1)
         itens = []
@@ -102,8 +104,8 @@ else:
             if restaurante and itens:
                 with st.spinner("Chef IA preparando..."):
                     try:
-                        # MODELO "gemini-pro" é o mais compatível com todas as versões de biblioteca
-                        model = genai.GenerativeModel('gemini-pro')
+                        # Usando a versão estável com a nova chave
+                        model = genai.GenerativeModel('gemini-1.5-flash')
                         
                         lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                         prompt = (f"Gere legendas de venda para o restaurante {restaurante}. Estilo: {estilo}. Canal: {destino}.\n"
@@ -120,18 +122,22 @@ else:
                         st.balloons()
                     except Exception as e:
                         st.error(f"Erro ao acessar IA: {e}")
+            else:
+                st.warning("Preencha o nome do restaurante e adicione produtos!")
 
+    # --- ABA 2: ESTRATÉGIA ---
     with tab_estrategia:
         if st.button("📅 GERAR PLANO SEMANAL"):
             if restaurante:
                 with st.spinner("Gerando planejamento..."):
                     try:
-                        model = genai.GenerativeModel('gemini-pro')
-                        res = model.generate_content(f"Crie um calendário de posts para {restaurante} ({tipo_comida}).")
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        res = model.generate_content(f"Crie um calendário de posts de 7 dias para {restaurante} ({tipo_comida}). Foque em engajamento e vendas.")
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
                         st.write(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
                         copy_button(res.text, "plan_sem")
                     except Exception as e:
                         st.error(f"Erro ao gerar estratégia: {e}")
-
+            else:
+                st.warning("Preencha o nome do restaurante no painel lateral.")
