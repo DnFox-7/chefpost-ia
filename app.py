@@ -17,7 +17,8 @@ st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
     .item-card { background-color: rgba(255, 75, 43, 0.05); padding: 20px; border-radius: 15px; border: 1px solid #FF4B2B; margin-bottom: 20px; }
-    .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; border: none; width: 100%; border-radius: 10px; height: 50px; }
+    .result-box { background-color: #161b22; padding: 15px; border-radius: 10px; border-left: 5px solid #FF4B2B; margin-bottom: 30px; }
+    .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; border-radius: 10px; height: 50px; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -35,81 +36,74 @@ if st.session_state.user is None:
                 res = supabase.auth.sign_in_with_password({"email": e, "password": s})
                 st.session_state.user = res
                 st.rerun()
-            except: st.error("Login inválido ou conta não ativada.")
+            except: st.error("Login inválido.")
 else:
     # --- 5. PAINEL LATERAL ---
     with st.sidebar:
         st.header("👨‍🍳 Configurações")
-        restaurante = st.text_input("Restaurante", placeholder="Ex: Pizzaria do Zé")
-        
-        st.divider()
-        destino = st.selectbox(
-            "Onde vai postar?", 
-            ["Instagram (Feed/Reels)", "WhatsApp (Cardápio)", "iFood", "Facebook Ads"]
-        )
+        restaurante = st.text_input("Restaurante", placeholder="Ex: Burguer House")
+        destino = st.selectbox("Onde vai postar?", ["Instagram (Feed/Reels)", "WhatsApp (Cardápio)", "iFood", "Facebook Ads"])
         
         dias, horas = "", ""
         if "WhatsApp" in destino:
-            st.info("📅 Detalhes do Cardápio")
-            dias = st.multiselect("Dias de Funcionamento", ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], default=["Sex", "Sáb", "Dom"])
-            horas = st.text_input("Horário de Atendimento", "18h às 23h")
+            dias = st.multiselect("Dias", ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], default=["Sex", "Sáb", "Dom"])
+            horas = st.text_input("Horário", "18h às 23h")
         
-        st.divider()
-        
-        estilo = st.select_slider(
-            "Estilo da Escrita", 
-            options=["Descontraído", "Persuasivo", "Gourmet"]
-        )
-        
-        # --- MUDANÇA SOLICITADA: Taxa começa com "A consultar" ---
+        estilo = st.select_slider("Estilo da Escrita", options=["Descontraído", "Persuasivo", "Gourmet"])
         taxa = st.text_input("Taxa de Entrega", "A consultar")
-        
         tempo = st.text_input("Tempo Estimado", "30-50 min")
         
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
 
-    # --- 6. ÁREA CENTRAL ---
-    st.title("🚀 Gerador de Conteúdo")
-    num = st.number_input("Quantos produtos no post?", 1, 10, 1)
+    # --- 6. ENTRADA DE PRODUTOS ---
+    st.title("🚀 Gerador de Legendas Individuais")
+    num = st.number_input("Quantos produtos?", 1, 10, 1)
     
     itens = []
     for i in range(num):
         st.markdown(f'<div class="item-card">', unsafe_allow_html=True)
         c1, c2 = st.columns([3, 1])
-        with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}", placeholder="Nome do prato")
-        with c2: p = st.text_input(f"Preço", key=f"p{i}", placeholder="0,00")
-        d = st.text_area(f"O que vem nele?", key=f"d{i}", height=70, placeholder="Descreva os ingredientes...")
+        with c1: n = st.text_input(f"Nome do Produto {i+1}", key=f"n{i}")
+        with c2: p = st.text_input(f"Preço", key=f"p{i}")
+        d = st.text_area(f"O que tem nele?", key=f"d{i}", height=70)
         if n: itens.append({"nome": n, "preco": p, "desc": d})
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("✨ GERAR TEXTO PARA " + destino.upper()):
+    # --- 7. GERAÇÃO INDIVIDUAL ---
+    if st.button("✨ GERAR LEGENDAS SEPARADAS"):
         if restaurante and itens:
-            with st.spinner("Chef IA preparando sua copy..."):
+            with st.spinner("O Chef IA está preparando as legendas separadamente..."):
                 try:
                     model = genai.GenerativeModel('gemini-3-flash-preview')
+                    st.divider()
                     
-                    prod_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    contexto_whats = f"\nAtendimento: {', '.join(dias)} | Horário: {horas}" if dias else ""
+                    for idx, item in enumerate(itens):
+                        # Prompt focado apenas no item do loop
+                        prompt = (
+                            f"Você é um copywriter gastronômico experiente. Crie uma legenda exclusiva para o produto: {item['nome']}. "
+                            f"Valor: R$ {item['preco']}. Ingredientes/Descrição: {item['desc']}. "
+                            f"Restaurante: {restaurante}. Canal: {destino}. Estilo: {estilo}. "
+                            f"Taxa: {taxa}. Tempo: {tempo}. "
+                            f"{f'Funcionamento: {dias} - {horas}' if dias else ''}\n"
+                            f"Instrução: Foque 100% neste produto. Use emojis adequados e finalize com uma CTA (chamada para ação)."
+                        )
+                        
+                        res = model.generate_content(prompt)
+                        
+                        # --- EXIBIÇÃO INDIVIDUAL COM BOTÃO DE COPIAR ---
+                        st.markdown(f"### 📦 Legenda: {item['nome']}")
+                        st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                        
+                        # O st.code gera automaticamente o botão de cópia no canto superior direito
+                        st.code(res.text, language=None)
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
                     
-                    prompt = (
-                        f"Atue como um redator publicitário focado em gastronomia. "
-                        f"Crie um post para {destino} do restaurante {restaurante}. "
-                        f"O estilo de escrita deve ser {estilo}. "
-                        f"Informações: Taxa de entrega {taxa}, Tempo {tempo}. {contexto_whats}\n"
-                        f"Cardápio do Post:\n{prod_text}"
-                        f"\nDiretrizes:\n"
-                        f"- Estilo Descontraído: Use emojis e linguagem amigável.\n"
-                        f"- Estilo Persuasivo: Foque em gatilhos mentais e desejo.\n"
-                        f"- Estilo Gourmet: Seja elegante e descritivo."
-                    )
-                    
-                    res = model.generate_content(prompt)
-                    st.subheader("✅ Resultado Gerado:")
-                    st.text_area("Pronto para copiar:", value=res.text, height=450)
                     st.balloons()
+                    st.success("✅ Legendas geradas! Use o ícone no canto superior direito de cada caixa para copiar.")
                 except Exception as e:
                     st.error(f"Erro ao gerar: {e}")
         else:
-            st.warning("Preencha o nome do restaurante e adicione pelo menos um produto!")
+            st.warning("Preencha o nome do restaurante e adicione os produtos!")
