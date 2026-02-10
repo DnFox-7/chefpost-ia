@@ -8,7 +8,6 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
-# Verifique se esta chave está correta conforme o Google AI Studio
 API_KEY_GEMINI = "AIzaSyAWeO6CpkGvhghUZa_T5FY2o8Jw2fcRzL8"
 genai.configure(api_key=API_KEY_GEMINI)
 
@@ -130,10 +129,9 @@ else:
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef IA preparando sua legenda..."):
-               try:
-                    # FORÇANDO A ROTA ESTÁVEL (V1) E O MODELO CORRETO
-                    # Usar o nome completo com 'models/' resolve o problema em 99% dos casos 404
-                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+                try:
+                    # FORÇANDO O MODELO COM O PREFIXO COMPLETO
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
@@ -142,13 +140,20 @@ else:
                         f"Crie um post atraente para o restaurante {restaurante}. "
                         f"Formato: {formato}. Produtos: {p_text}. "
                         f"Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. "
-                        f"Use emojis que despertem desejo, uma linguagem persuasiva e hashtags de comida."
+                        f"Use emojis que despertem desejo e hashtags de comida."
                     )
                     
-                    # Chamada explícita sem passar parâmetros que possam acionar a v1beta
                     res = model.generate_content(prompt)
                     
                     if res.text:
                         st.subheader("✅ Conteúdo Gerado:")
                         st.text_area("Copie aqui:", value=res.text, height=400)
                         st.success("Prontinho! Agora é só postar e vender.")
+                    else:
+                        st.error("A IA respondeu vazia. Tente novamente.")
+                
+                except Exception as e:
+                    st.error(f"Erro na IA: {e}")
+                    st.info("💡 Dica: Verifique se sua chave no Google AI Studio está ativa.")
+        else:
+            st.warning("⚠️ Preencha o nome do restaurante e adicione os itens.")
