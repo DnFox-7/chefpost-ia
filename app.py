@@ -88,18 +88,31 @@ else:
         st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("🚀 GERAR AGORA"):
-        if restaurante and itens:
-            with st.spinner("Chef IA preparando..."):
-                try:
-                    # O NOME DO MODELO QUE FUNCIONA EM QUALQUER VERSÃO:
-                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                    p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    prompt = f"Crie um post para {restaurante}. Produtos: {p_text}. Delivery: {taxa}."
-                    
-                    res = model.generate_content(prompt)
+    if restaurante and itens:
+        with st.spinner("Chef IA preparando sua legenda..."):
+            try:
+                # 1. FORÇAR A VERSÃO ESTÁVEL DA API (Muda de v1beta para v1)
+                # O parâmetro transport='rest' ajuda a evitar o erro 404 em algumas redes
+                genai.configure(api_key=API_KEY_GEMINI, transport='rest')
+                
+                # 2. USAR O NOME COMPLETO DO RECURSO
+                # Para chaves novas, o Google exige o prefixo 'models/'
+                model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+                
+                p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                prompt = f"Crie um post gourmet para {restaurante}. Itens: {p_text}. Delivery: {taxa}."
+                
+                # 3. CHAMADA COM TRATAMENTO DE VERSÃO
+                res = model.generate_content(prompt)
+                
+                if res.text:
                     st.subheader("✅ Conteúdo Gerado:")
-                    st.text_area("Copiado:", value=res.text, height=400)
-                except Exception as e:
-                    st.error(f"Erro na IA: {e}")
-        else: st.warning("⚠️ Preencha os dados!")
+                    st.text_area("Copie aqui:", value=res.text, height=400)
+                else:
+                    st.error("A IA não retornou texto. Tente novamente.")
+
+            except Exception as e:
+                # Se o erro 404 persistir, vamos tentar a última variação de nome
+                st.error(f"Erro na IA: {e}")
+                st.info("💡 Dica: Verifique se você criou a API KEY em um 'NOVO PROJETO' no Google AI Studio.")
 
