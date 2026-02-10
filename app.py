@@ -119,7 +119,7 @@ else:
             with st.spinner("Chef preparando..."):
                 try:
                     # Forçando o uso do modelo estável
-                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash-latest')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     prompt = f"Crie um post gourmet para {restaurante}. Itens: {p_text}. Delivery: {taxa}."
@@ -134,3 +134,4 @@ else:
                     # Caso o 404 continue, o erro está na biblioteca do servidor
                     st.error(f"Erro persistente: {e}")
                     st.info("Aguarde o Streamlit atualizar as bibliotecas no requirements.txt")
+
