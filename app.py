@@ -8,7 +8,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
-API_KEY_GEMINI = "AIzaSyAWeO6CpkGvhghUZa_T5FY2o8Jw2fcRzL8"
+API_KEY_GEMINI = "AIzaSyAo6hw3gSvOe9ZZYPYoDtf_wNnCj_O2gaQ"
 # A MUDANÇA ESTÁ AQUI: transport='rest' força a versão estável
 genai.configure(api_key=API_KEY_GEMINI, transport='rest')
 
@@ -102,3 +102,4 @@ else:
                 except Exception as e:
                     st.error(f"Erro na IA: {e}")
         else: st.warning("⚠️ Preencha os dados!")
+
