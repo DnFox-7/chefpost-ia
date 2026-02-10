@@ -25,7 +25,6 @@ st.markdown("""
 # --- 4. FUNÇÕES DE SEGURANÇA ---
 def verificar_plano(email):
     try:
-        # Consulta a tabela perfis_clientes
         res = supabase.table("perfis_clientes").select("plano_ativo").eq("email", email).execute()
         if res.data and len(res.data) > 0:
             return res.data[0]['plano_ativo']
@@ -34,7 +33,6 @@ def verificar_plano(email):
         return False
 
 def cadastrar_no_banco(email):
-    # Cria o registro inicial como inativo para você ativar depois
     try:
         supabase.table("perfis_clientes").insert({"email": email, "plano_ativo": False}).execute()
     except:
@@ -70,13 +68,13 @@ if st.session_state.user is None:
             if st.button("Registrar"):
                 try:
                     supabase.auth.sign_up({"email": e_c, "password": s_c})
-                    cadastrar_no_banco(e_c) # Salva na tabela perfis_clientes
+                    cadastrar_no_banco(e_c)
                     st.success("✅ Conta criada! Após o pagamento, seu acesso será liberado.")
                 except Exception as ex:
                     st.error(f"Erro ao cadastrar: {ex}")
 
 else:
-    # --- 6. O APLICATIVO (SÓ ACESSA SE LOGADO E ATIVO) ---
+    # --- 6. O APLICATIVO ---
     with st.sidebar:
         st.header("👨‍🍳 Painel")
         st.write(f"Logado como: {st.session_state.user.user.email}")
@@ -95,7 +93,6 @@ else:
             dia = st.selectbox("📅 Dia", ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"])
             horario = st.text_input("⌚ Horário", "18h às 23h")
 
-    # --- ÁREA DE INPUT DE PRODUTOS ---
     st.title("🚀 Gerador de Conteúdo")
     num = st.number_input("Quantos produtos?", 1, 10, 1)
     
@@ -109,29 +106,37 @@ else:
             p = st.text_input("Preço", key=f"p{i}")
         d = st.text_input("Ingredientes/Descrição", key=f"d{i}")
         
-        if n: # Só adiciona se tiver nome
+        if n:
             itens.append({"nome": n, "preco": p, "desc": d})
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- BOTÃO DE GERAR (AGORA ALINHADO CORRETAMENTE) ---
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
                 try:
-                    # Forçando o uso do modelo estável
-                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash-latest')
+                    # ALTERAÇÃO PARA ESTABILIDADE: Nome limpo do modelo
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    prompt = f"Crie um post gourmet para {restaurante}. Itens: {p_text}. Delivery: {taxa}."
                     
-                    # Chamada direta
+                    prompt = (
+                        f"Atue como um redator publicitário de alto nível especializado em gastronomia. "
+                        f"Crie um post para o restaurante {restaurante}. "
+                        f"Formato solicitado: {formato}. "
+                        f"Itens do cardápio: {p_text}. "
+                        f"Detalhes: Entrega {taxa}, Tempo {tempo}. {dia} {horario}. "
+                        f"Use uma linguagem que desperte o apetite, emojis e hashtags estratégicas."
+                    )
+                    
                     res = model.generate_content(prompt)
                     
                     if res.text:
                         st.text_area("Copiado com Sucesso:", value=res.text, height=400)
-                
-                except Exception as e:
-                    # Caso o 404 continue, o erro está na biblioteca do servidor
-                    st.error(f"Erro persistente: {e}")
-                    st.info("Aguarde o Streamlit atualizar as bibliotecas no requirements.txt")
+                    else:
+                        st.warning("A IA não gerou texto. Tente clicar no botão novamente.")
 
+                except Exception as e:
+                    st.error(f"Erro na IA: {e}")
+                    st.info("Dica: Se o erro for 404, tente reiniciar o App no painel do Streamlit.")
+        else:
+            st.warning("Preencha o nome do restaurante e adicione pelo menos um produto.")
