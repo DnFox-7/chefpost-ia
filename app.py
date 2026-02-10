@@ -9,7 +9,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
-API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
+API_KEY_GEMINI = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
 genai.configure(api_key=API_KEY_GEMINI)
 
 # --- 3. DESIGN (MANTIDO EXATAMENTE COMO VOCÊ QUER) ---
@@ -134,3 +134,4 @@ else:
                         copy_button(res.text, "plan_sem")
                     except Exception as e:
                         st.error(f"Erro ao gerar estratégia: {e}")
+
