@@ -9,7 +9,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
 API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
-# Forçando transporte REST para estabilidade
 genai.configure(api_key=API_KEY_GEMINI, transport='rest')
 
 # --- 3. DESIGN E CSS ---
@@ -17,90 +16,102 @@ st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
-    .item-card { background-color: rgba(128, 128, 128, 0.1); padding: 20px; border-radius: 15px; border: 2px solid #FF4B2B; margin-bottom: 25px; }
-    .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; height: 50px; width: 100%; border-radius: 10px; }
-    .stTextArea textarea { background-color: #111 !important; color: #FFF !important; }
-    .pix-box { background-color: #1e1e1e; padding: 20px; border-radius: 10px; border: 1px solid #FF4B2B; margin-top: 10px; }
+    .item-card { background-color: rgba(128, 128, 128, 0.05); padding: 20px; border-radius: 15px; border: 1px solid #FF4B2B; margin-bottom: 20px; }
+    .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNÇÕES DE SEGURANÇA ---
+# --- 4. FUNÇÕES ---
 def verificar_plano(email):
     try:
         res = supabase.table("perfis_clientes").select("plano_ativo").eq("email", email).execute()
         return res.data[0]['plano_ativo'] if res.data else False
     except: return False
 
-def cadastrar_no_banco(email):
-    try: supabase.table("perfis_clientes").insert({"email": email, "plano_ativo": False}).execute()
-    except: pass
-
 # --- 5. LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
+
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.title("🥘 ChefPost IA")
-        aba_log, aba_cad = st.tabs(["Login", "Criar Conta"])
-        with aba_log:
-            e = st.text_input("E-mail")
-            s = st.text_input("Senha", type="password")
-            if st.button("Entrar"):
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": e, "password": s})
-                    if verificar_plano(e):
-                        st.session_state.user = res
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Conta aguardando ativação.")
-                        st.info("PIX: danillo.lima328@gmail.com")
-                except: st.error("E-mail ou senha incorretos.")
-        with aba_cad:
-            e_c = st.text_input("E-mail", key="cad_e")
-            s_c = st.text_input("Senha", type="password", key="cad_s")
-            if st.button("Registrar"):
-                try:
-                    supabase.auth.sign_up({"email": e_c, "password": s_c})
-                    cadastrar_no_banco(e_c)
-                    st.success("✅ Criada! Faça login.")
-                except Exception as ex: st.error(f"Erro: {ex}")
+        e = st.text_input("E-mail")
+        s = st.text_input("Senha", type="password")
+        if st.button("Entrar"):
+            try:
+                res = supabase.auth.sign_in_with_password({"email": e, "password": s})
+                if verificar_plano(e):
+                    st.session_state.user = res
+                    st.rerun()
+                else: st.warning("Aguardando ativação (PIX: danillo.lima328@gmail.com)")
+            except: st.error("Login inválido.")
 else:
-    # --- 6. APP ---
+    # --- 6. PAINEL LATERAL (CONFIGURAÇÕES DO POST) ---
     with st.sidebar:
-        st.header("👨‍🍳 Painel")
+        st.header("👨‍🍳 Configurações")
+        restaurante = st.text_input("Nome do Restaurante", placeholder="Ex: Burger King")
+        
+        st.divider()
+        # NOVAS OPÇÕES DE DESTINO
+        destino = st.selectbox(
+            "Onde você vai postar?",
+            ["Instagram (Feed/Reels)", "iFood (Descrição)", "WhatsApp (Cardápio)", "Facebook Ads", "Google Meu Negócio"]
+        )
+        
+        tom_voz = st.select_slider(
+            "Tom de voz",
+            options=["Divertido", "Persuasivo", "Gourmet/Sério"]
+        )
+        
+        taxa = st.text_input("Taxa de Entrega", "Grátis")
+        tempo = st.text_input("Tempo de Entrega", "30-45 min")
+        
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
-        restaurante = st.text_input("Restaurante")
-        formato = st.radio("Formato", ["Individual", "Cardápio WhatsApp"])
-        taxa = st.text_input("Taxa Entrega", "Grátis")
-        tempo = st.text_input("Tempo de Espera", "30-50 min")
 
-    st.title("🚀 Gerador de Conteúdo")
-    num = st.number_input("Quantos produtos?", 1, 10, 1)
+    # --- 7. ÁREA CENTRAL ---
+    st.title("🚀 Gerador de Conteúdo Profissional")
+    
+    col_a, col_b = st.columns([2, 1])
+    with col_b:
+        num = st.number_input("Produtos", 1, 10, 1)
+    
     itens = []
     for i in range(num):
-        st.markdown(f'<div class="item-card"><b>PRODUTO #{i+1}</b>', unsafe_allow_html=True)
-        c1, c2 = st.columns([3, 1])
-        with c1: n = st.text_input("Nome", key=f"n{i}")
-        with c2: p = st.text_input("Preço", key=f"p{i}")
-        d = st.text_input("Descrição", key=f"d{i}")
-        if n: itens.append({"nome": n, "preco": p, "desc": d})
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown(f'<div class="item-card">', unsafe_allow_html=True)
+            c1, c2 = st.columns([3, 1])
+            with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}", placeholder="Ex: X-Salada")
+            with c2: p = st.text_input(f"Preço", key=f"p{i}", placeholder="29,90")
+            d = st.text_area(f"O que vem nele?", key=f"d{i}", height=70)
+            if n: itens.append({"nome": n, "preco": p, "desc": d})
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("🚀 GERAR AGORA"):
+    if st.button("✨ GERAR TEXTO PARA " + destino.upper()):
         if restaurante and itens:
-            with st.spinner("Chef IA preparando..."):
+            with st.spinner(f"Criando copy para {destino}..."):
                 try:
-                    # ATUALIZADO PARA O MODELO QUE APARECEU NA SUA LISTA
                     model = genai.GenerativeModel('gemini-3-flash-preview')
                     
-                    p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    prompt = f"Atue como Social Media Gourmet. Crie um post para {restaurante}. Itens: {p_text}. Delivery: {taxa}. Use emojis."
+                    produtos_formatados = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                    
+                    # PROMPT DINÂMICO BASEADO NO DESTINO
+                    prompt = (
+                        f"Você é um copywriter especialista em gastronomia. "
+                        f"Crie um texto para {destino} do restaurante {restaurante}. "
+                        f"O tom deve ser {tom_voz}. "
+                        f"Produtos:\n{produtos_formatados} "
+                        f"Informações: Entrega {taxa} em {tempo}. "
+                        f"Regras: Se for iFood, foque em clareza e apetite. Se for Instagram, use muitos emojis e hashtags. "
+                        f"Se for Ads, use um Call to Action forte."
+                    )
                     
                     res = model.generate_content(prompt)
-                    st.subheader("✅ Conteúdo Gerado:")
-                    st.text_area("Copiado:", value=res.text, height=400)
+                    st.subheader("✅ Seu Post está Pronto:")
+                    st.text_area("Copie e cole:", value=res.text, height=450)
+                    st.balloons()
                 except Exception as e:
-                    st.error(f"Erro na IA: {e}")
-        else: st.warning("⚠️ Preencha os dados!")
+                    st.error(f"Erro: {e}")
+        else:
+            st.warning("Preencha o nome do restaurante e pelo menos 1 produto!")
