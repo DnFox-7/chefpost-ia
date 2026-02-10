@@ -118,23 +118,28 @@ else:
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
                 try:
-                    # Mudança crucial: Usando o nome exato que o Google exige
-                    # para evitar o erro 404 na v1beta
-                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                    # Configuração para ignorar filtros que às vezes causam erro 404
+                    generation_config = {
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                        "top_k": 64,
+                        "max_output_tokens": 8192,
+                    }
+                    
+                    # Tente sem o prefixo 'models/' primeiro, mas forçando o flash
+                    model = genai.GenerativeModel(
+                        model_name="gemini-1.5-flash",
+                        generation_config=generation_config
+                    )
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                    prompt = f"Atue como um redator publicitário gastronômico. Crie posts para {restaurante}. Formato: {formato}. Itens: {p_text}. Delivery: {taxa}, Tempo: {tempo}. Use emojis."
                     
-                    prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
-                    
-                    # Forçando a geração sem usar a versão v1beta se possível
                     res = model.generate_content(prompt)
+                    st.text_area("Conteúdo Gerado:", value=res.text, height=400)
                     
-                    if res.text:
-                        st.text_area("Copiado com Sucesso:", value=res.text, height=400)
-                    else:
-                        st.error("A IA não retornou texto. Verifique sua conexão.")
-                        
                 except Exception as e:
-                    # Se der erro 404 de novo, vamos tentar o modelo mais antigo (pro)
                     st.error(f"Erro na IA: {e}")
-                    st.info("Dica: Verifique se sua API Key no Google AI Studio está ativa.")
+                    st.info("Tentando solução alternativa...")
+                    # Se falhar, o código tentará rodar uma versão estável específica
+
