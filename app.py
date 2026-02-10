@@ -88,22 +88,43 @@ else:
             if n: itens.append({"nome": n, "preco": p, "desc": d})
             st.markdown('</div>', unsafe_allow_html=True)
 
-        if st.button("✨ GERAR LEGENDAS"):
-            if restaurante and itens:
-                model = genai.GenerativeModel('gemini-3-flash-preview')
-                for idx, item in enumerate(itens):
-                    res = model.generate_content(f"Crie legenda para {item['nome']} (R$ {item['preco']}) do {restaurante}. Estilo {estilo}.")
-                    st.markdown(f"### 📦 {item['nome']}")
-                    st.markdown(f'<div class="copy-area">{res.text}</div>', unsafe_allow_html=True)
-                    copy_button(res.text, f"leg_{idx}")
-                    st.divider()
+       if st.button("✨ GERAR LEGENDAS"):
+        if restaurante and itens:
+            with st.spinner("Chef IA preparando suas legendas..."):
+                try:
+                    model = genai.GenerativeModel('gemini-3-flash-preview')
+                    
+                    # Montamos um único pedido para a IA não travar por excesso de requisições
+                    lista_produtos = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                    
+                    prompt = (
+                        f"Você é um copywriter gourmet. Gere legendas INDIVIDUAIS para cada produto abaixo do restaurante {restaurante}. "
+                        f"Estilo: {estilo}. Canal: {destino}. Taxa: {taxa}. Tempo: {tempo}.\n"
+                        f"Produtos:\n{lista_produtos}\n"
+                        f"IMPORTANTE: Separe cada legenda com o marcador '---PRODUTO---'. Não misture os textos."
+                    )
+                    
+                    res = model.generate_content(prompt)
+                    # Separamos o texto da IA usando o marcador que pedimos
+                    legendas_separadas = res.text.split('---PRODUTO---')
+                    
+                    # Limpamos espaços vazios da lista
+                    legendas_separadas = [l.strip() for l in legendas_separadas if l.strip()]
 
-    with tab_estrategia:
-        st.subheader("Planejamento de Crescimento")
-        st.write("Use esta aba para saber o que postar e como anunciar seu restaurante.")
-        
-        c1, c2 = st.columns(2)
-        with c1:
+                    st.divider()
+                    
+                    for idx, texto_legenda in enumerate(legendas_separadas):
+                        # Tentamos pegar o nome do produto para o título, se não houver, usamos o índice
+                        nome_display = itens[idx]['nome'] if idx < len(itens) else f"Sugestão {idx+1}"
+                        
+                        st.markdown(f"### 📦 {nome_display}")
+                        st.markdown(f'<div class="copy-area">{texto_legenda}</div>', unsafe_allow_html=True)
+                        copy_button(texto_legenda, f"leg_{idx}")
+                        st.divider()
+
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Eita! A API está ocupada. Tente novamente em 10 segundos. Erro: {e}")
             if st.button("📅 GERAR CALENDÁRIO DA SEMANA"):
                 if restaurante:
                     with st.spinner("Criando seu plano de postagens..."):
