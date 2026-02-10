@@ -131,7 +131,8 @@ else:
             with st.spinner("Chef IA preparando sua legenda..."):
                 try:
                     # FORÇANDO O MODELO COM O PREFIXO COMPLETO
-                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    # Tente este nome específico que o Google exige para contas novas
+                    model = genai.GenerativeModel(model_name='gemini-1.5-flash-001')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
@@ -157,3 +158,4 @@ else:
                     st.info("💡 Dica: Verifique se sua chave no Google AI Studio está ativa.")
         else:
             st.warning("⚠️ Preencha o nome do restaurante e adicione os itens.")
+
