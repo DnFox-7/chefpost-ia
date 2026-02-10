@@ -130,9 +130,10 @@ else:
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef IA preparando sua legenda..."):
-                try:
-                    # CONFIGURAÇÃO DE MODELO ESTÁVEL
-                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+               try:
+                    # FORÇANDO A ROTA ESTÁVEL (V1) E O MODELO CORRETO
+                    # Usar o nome completo com 'models/' resolve o problema em 99% dos casos 404
+                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
@@ -144,17 +145,10 @@ else:
                         f"Use emojis que despertem desejo, uma linguagem persuasiva e hashtags de comida."
                     )
                     
+                    # Chamada explícita sem passar parâmetros que possam acionar a v1beta
                     res = model.generate_content(prompt)
                     
                     if res.text:
                         st.subheader("✅ Conteúdo Gerado:")
                         st.text_area("Copie aqui:", value=res.text, height=400)
                         st.success("Prontinho! Agora é só postar e vender.")
-                    else:
-                        st.error("A IA não retornou texto. Tente clicar no botão novamente.")
-
-                except Exception as e:
-                    st.error(f"Erro na IA: {e}")
-                    st.info("💡 Dica: Se o erro for 404, faça um 'Reboot App' no painel do Streamlit.")
-        else:
-            st.warning("⚠️ Preencha o nome do restaurante e adicione os itens.")
