@@ -12,15 +12,13 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
 genai.configure(api_key=API_KEY_GEMINI)
 
-# --- 3. DESIGN E CSS ---
+# --- 3. DESIGN ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
     .item-card { background-color: rgba(255, 75, 43, 0.05); padding: 20px; border-radius: 15px; border: 1px solid #FF4B2B; margin-bottom: 20px; }
-    .copy-area { background: #161b22; color: #c9d1d9; padding: 15px; border-radius: 8px; font-family: sans-serif; white-space: pre-wrap; margin-bottom: 10px; border: 1px solid #30363d; line-height: 1.6; }
-    .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; border-radius: 10px; height: 50px; width: 100%; border: none; }
-    .strategy-card { background-color: #1e252e; padding: 20px; border-radius: 10px; border-left: 5px solid #25D366; margin-bottom: 20px; }
+    .copy-area { background: #161b22; color: #c9d1d9; padding: 15px; border-radius: 8px; font-family: sans-serif; white-space: pre-wrap; margin-bottom: 10px; border: 1px solid #30363d; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -46,96 +44,62 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LOGICA DE ACESSO ---
+# --- 5. LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.title("🥘 ChefPost IA")
-        aba_log, aba_cad = st.tabs(["Login", "Criar Conta"])
-        with aba_log:
-            e = st.text_input("E-mail", key="l_e")
-            s = st.text_input("Senha", type="password", key="l_s")
-            if st.button("Entrar"):
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": e, "password": s})
-                    st.session_state.user = res
-                    st.rerun()
-                except: st.error("Dados incorretos.")
-        with aba_cad:
-            e_c = st.text_input("Novo E-mail", key="c_e")
-            s_c = st.text_input("Senha", type="password", key="c_s")
-            if st.button("Registrar"):
-                try:
-                    supabase.auth.sign_up({"email": e_c, "password": s_c})
-                    st.success("Conta criada! Tente logar.")
-                except Exception as ex: st.error(f"Erro: {ex}")
+        e = st.text_input("E-mail")
+        s = st.text_input("Senha", type="password")
+        if st.button("Entrar"):
+            try:
+                res = supabase.auth.sign_in_with_password({"email": e, "password": s})
+                st.session_state.user = res
+                st.rerun()
+            except: st.error("Erro no login.")
 else:
-    # --- 6. PAINEL PRINCIPAL ---
+    # --- 6. APP ---
     with st.sidebar:
-        st.header("👨‍🍳 Painel")
-        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burger King")
-        tipo_comida = st.selectbox("Segmento", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana"])
-        st.divider()
-        destino = st.selectbox("Canal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
-        estilo = st.select_slider("Estilo", options=["Descontraído", "Persuasivo", "Gourmet"])
+        restaurante = st.text_input("Nome da Loja")
+        tipo_comida = st.selectbox("Segmento", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria"])
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
 
-    tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia"])
+    tab1, tab2 = st.tabs(["🚀 Legendas", "📊 Estratégia"])
 
-    # --- ABA 1: GERADOR ---
-    with tab_gerador:
-        num = st.number_input("Quantos produtos?", 1, 10, 1)
+    with tab1:
+        num = st.number_input("Produtos", 1, 5, 1)
         itens = []
         for i in range(num):
-            st.markdown(f'<div class="item-card">', unsafe_allow_html=True)
-            c1, c2 = st.columns([3, 1])
-            with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}")
-            with c2: p = st.text_input(f"Preço", key=f"p{i}")
-            d = st.text_area(f"Descrição", key=f"d{i}", height=70)
-            if n: itens.append({"nome": n, "preco": p, "desc": d})
-            st.markdown('</div>', unsafe_allow_html=True)
+            n = st.text_input(f"Nome {i+1}", key=f"n{i}")
+            p = st.text_input(f"Preço {i+1}", key=f"p{i}")
+            if n: itens.append({"nome": n, "preco": p})
 
-        if st.button("✨ GERAR LEGENDAS"):
-            if restaurante and itens:
-                with st.spinner("Chef IA preparando..."):
-                    try:
-                        # ALTERAÇÃO CHAVE: Usando o modelo 'gemini-1.5-flash-latest'
-                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        
-                        lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                        prompt = (f"Gere legendas de venda para o restaurante {restaurante}. Estilo: {estilo}. Canal: {destino}.\n"
-                                  f"Produtos:\n{lista_p}\n"
-                                  f"Separe as legendas com '---SEPARAR---'.")
-                        
-                        res = model.generate_content(prompt)
-                        legendas = [l.strip() for l in res.text.split('---SEPARAR---') if l.strip()]
-                        
-                        for idx, texto in enumerate(legendas):
-                            st.markdown(f"### 📦 Legenda {idx+1}")
-                            st.markdown(f'<div class="copy-area">{texto}</div>', unsafe_allow_html=True)
-                            copy_button(texto, f"btn_leg_{idx}")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"Erro ao acessar IA: {e}")
+        if st.button("✨ GERAR"):
+            try:
+                # Mudança para o modelo PRO que é mais aceito em versões antigas de biblioteca
+                model = genai.GenerativeModel('gemini-1.5-pro')
+                
+                lista = "".join([f"- {x['nome']} (R$ {x['preco']})\n" for x in itens])
+                res = model.generate_content(f"Crie legendas separadas por '---' para: {lista} do restaurante {restaurante}")
+                
+                legendas = res.text.split('---')
+                for idx, txt in enumerate(legendas):
+                    if txt.strip():
+                        st.markdown(f'<div class="copy-area">{txt.strip()}</div>', unsafe_allow_html=True)
+                        copy_button(txt.strip(), f"b{idx}")
+            except Exception as e:
+                st.error(f"Erro: {e}")
 
-    # --- ABA 2: ESTRATÉGIA ---
-    with tab_estrategia:
-        if st.button("📅 GERAR PLANO SEMANAL"):
-            if restaurante:
-                with st.spinner("Gerando planejamento..."):
-                    try:
-                        # ALTERAÇÃO CHAVE: Usando o modelo 'gemini-1.5-flash-latest'
-                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        res = model.generate_content(f"Crie um calendário de posts para {restaurante} ({tipo_comida}).")
-                        st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
-                        st.write(res.text)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        copy_button(res.text, "plan_sem")
-                    except Exception as e:
-                        st.error(f"Erro ao gerar estratégia: {e}")
-            else:
-                st.warning("Preencha o nome do restaurante no painel lateral.")
+    with tab2:
+        if st.button("📅 PLANO SEMANAL"):
+            try:
+                model = genai.GenerativeModel('gemini-1.5-pro')
+                res = model.generate_content(f"Plano de posts para {restaurante}")
+                st.write(res.text)
+                copy_button(res.text, "strat")
+            except Exception as e:
+                st.error(f"Erro: {e}")
