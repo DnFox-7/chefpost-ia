@@ -95,21 +95,39 @@ else:
             dia = st.selectbox("📅 Dia", ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"])
             horario = st.text_input("⌚ Horário", "18h às 23h")
 
-    # ÁREA DE INPUT DE PRODUTOS
-   if st.button("🚀 GERAR AGORA"):
+    # --- ÁREA DE INPUT DE PRODUTOS ---
+    st.title("🚀 Gerador de Conteúdo")
+    num = st.number_input("Quantos produtos?", 1, 10, 1)
+    
+    itens = []
+    for i in range(num):
+        st.markdown(f'<div class="item-card"><b>PRODUTO #{i+1}</b>', unsafe_allow_html=True)
+        c1, c2 = st.columns([3, 1])
+        with c1: 
+            n = st.text_input("Nome", key=f"n{i}")
+        with c2: 
+            p = st.text_input("Preço", key=f"p{i}")
+        d = st.text_input("Ingredientes/Descrição", key=f"d{i}")
+        
+        if n: # Só adiciona se tiver nome
+            itens.append({"nome": n, "preco": p, "desc": d})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- BOTÃO DE GERAR (AGORA ALINHADO CORRETAMENTE) ---
+    if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
                 try:
-                    # Usando o identificador completo para evitar o erro NotFound
+                    # Usando o modelo flash
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
-                    prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
+                    prompt = f"Atue como um Social Media Gourmet. Crie um post para o restaurante {restaurante}. Formato: {formato}. Itens: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis estrategicos e chamadas para ação."
                     
                     res = model.generate_content(prompt)
                     st.text_area("Copiado com Sucesso:", value=res.text, height=400)
                 except Exception as e:
                     st.error(f"Erro na IA: {e}")
         else:
-            st.warning("Preencha o nome do restaurante e os itens.")
+            st.warning("Preencha o nome do restaurante e adicione pelo menos um produto.")
