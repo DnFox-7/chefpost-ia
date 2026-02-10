@@ -111,7 +111,7 @@ else:
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
-               model = genai.GenerativeModel('models/gemini-1.5-flash')
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                 prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
                 res = model.generate_content(prompt)
@@ -119,4 +119,5 @@ else:
         else:
 
             st.warning("Preencha o nome do restaurante e os itens.")
+
 
