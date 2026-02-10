@@ -119,7 +119,7 @@ else:
             with st.spinner("Chef preparando..."):
                 try:
                     # Usando o modelo flash
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
@@ -131,3 +131,4 @@ else:
                     st.error(f"Erro na IA: {e}")
         else:
             st.warning("Preencha o nome do restaurante e adicione pelo menos um produto.")
+
