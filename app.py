@@ -96,28 +96,20 @@ else:
             horario = st.text_input("⌚ Horário", "18h às 23h")
 
     # ÁREA DE INPUT DE PRODUTOS
-    st.title("🚀 Gerador de Conteúdo")
-    num = st.number_input("Quantos produtos?", 1, 10, 1)
-    itens = []
-    for i in range(num):
-        st.markdown(f'<div class="item-card"><b>PRODUTO #{i+1}</b>', unsafe_allow_html=True)
-        c1, c2 = st.columns([3, 1])
-        with c1: n = st.text_input("Nome", key=f"n{i}")
-        with c2: p = st.text_input("Preço", key=f"p{i}")
-        d = st.text_input("Ingredientes", key=f"d{i}")
-        if n: itens.append({"nome": n, "preco": p, "desc": d})
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    if st.button("🚀 GERAR AGORA"):
+   if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
-                model = genai.GenerativeModel('models/gemini-1.5-flash')
-                p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
-                res = model.generate_content(prompt)
-                st.text_area("Copiado com Sucesso:", value=res.text, height=400)
+                try:
+                    # Usando o identificador completo para evitar o erro NotFound
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                    
+                    prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
+                    
+                    res = model.generate_content(prompt)
+                    st.text_area("Copiado com Sucesso:", value=res.text, height=400)
+                except Exception as e:
+                    st.error(f"Erro na IA: {e}")
         else:
-
             st.warning("Preencha o nome do restaurante e os itens.")
-
-
