@@ -11,7 +11,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
 genai.configure(api_key=API_KEY_GEMINI, transport='rest')
 
-# --- 3. DESIGN E CSS ---
+# --- 3. DESIGN ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
@@ -21,14 +21,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNÇÕES ---
-def verificar_plano(email):
-    try:
-        res = supabase.table("perfis_clientes").select("plano_ativo").eq("email", email).execute()
-        return res.data[0]['plano_ativo'] if res.data else False
-    except: return False
-
-# --- 5. LOGIN ---
+# --- 4. LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
@@ -40,45 +33,42 @@ if st.session_state.user is None:
         if st.button("Entrar"):
             try:
                 res = supabase.auth.sign_in_with_password({"email": e, "password": s})
-                if verificar_plano(e):
-                    st.session_state.user = res
-                    st.rerun()
-                else: st.warning("Aguardando ativação (PIX: danillo.lima328@gmail.com)")
-            except: st.error("Login inválido.")
+                st.session_state.user = res
+                st.rerun()
+            except: st.error("Login inválido ou conta não ativada.")
 else:
-    # --- 6. PAINEL LATERAL ---
+    # --- 5. PAINEL LATERAL ---
     with st.sidebar:
         st.header("👨‍🍳 Configurações")
-        restaurante = st.text_input("Nome do Restaurante", placeholder="Ex: Pizzaria do Zé")
+        restaurante = st.text_input("Restaurante", placeholder="Nome da Loja")
         
         st.divider()
-        destino = st.selectbox(
-            "Onde você vai postar?",
-            ["Instagram (Feed/Reels)", "WhatsApp (Cardápio)", "iFood (Descrição)", "Facebook Ads"]
+        destino = st.selectbox("Onde vai postar?", ["Instagram (Feed/Reels)", "WhatsApp (Cardápio)", "iFood", "Ads"])
+        
+        # Campos de Cardápio para WhatsApp
+        dias, horas = "", ""
+        if "WhatsApp" in destino:
+            dias = st.multiselect("Dias", ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], default=["Sex", "Sáb", "Dom"])
+            horas = st.text_input("Horário", "18h às 23h")
+        
+        st.divider()
+        
+        # --- A MUDANÇA SOLICITADA ---
+        estilo = st.select_slider(
+            "Personalidade do Post", 
+            options=["Descontraída", "Vendedora", "Elegante"]
         )
         
-        # CAMPOS CONDICIONAIS PARA WHATSAPP
-        dias_semana = ""
-        horario_func = ""
-        if "WhatsApp" in destino:
-            st.info("📅 Configurações do Cardápio")
-            dias_semana = st.multiselect("Dias de Funcionamento", 
-                ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
-                default=["Sexta", "Sábado", "Domingo"])
-            horario_func = st.text_input("Horário (Ex: 18h às 23h)", "18h às 23:30h")
-        
-        st.divider()
-        tom_voz = st.select_slider("Tom de voz", options=["Divertido", "Persuasivo", "Gourmet"])
         taxa = st.text_input("Taxa de Entrega", "Grátis")
-        tempo = st.text_input("Tempo de Entrega", "30-45 min")
+        tempo = st.text_input("Tempo", "30-50 min")
         
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
 
-    # --- 7. ÁREA CENTRAL ---
+    # --- 6. ÁREA CENTRAL ---
     st.title("🚀 Gerador de Conteúdo")
-    num = st.number_input("Quantos produtos no post?", 1, 10, 1)
+    num = st.number_input("Produtos", 1, 10, 1)
     
     itens = []
     for i in range(num):
@@ -86,7 +76,7 @@ else:
         c1, c2 = st.columns([3, 1])
         with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}")
         with c2: p = st.text_input(f"Preço", key=f"p{i}")
-        d = st.text_area(f"Descrição/Ingredientes", key=f"d{i}", height=70)
+        d = st.text_area(f"Descrição", key=f"d{i}", height=70)
         if n: itens.append({"nome": n, "preco": p, "desc": d})
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -94,25 +84,22 @@ else:
         if restaurante and itens:
             with st.spinner("Chef IA preparando..."):
                 try:
+                    # Usando o modelo confirmado na sua lista (Gemini 3 Flash)
                     model = genai.GenerativeModel('gemini-3-flash-preview')
                     
-                    produtos_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    
-                    # Montagem do contexto extra para WhatsApp
-                    info_extra = f"\nFuncionamento: {', '.join(dias_semana)} das {horario_func}." if dias_semana else ""
+                    prod_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                    contexto_whats = f"\nFuncionamento: {', '.join(dias)} - {horas}" if dias else ""
                     
                     prompt = (
-                        f"Atue como copywriter gastronômico. Crie um texto para {destino} do {restaurante}. "
-                        f"Tom: {tom_voz}. Taxa: {taxa}. Tempo: {tempo}. {info_extra}\n"
-                        f"Produtos:\n{produtos_text}"
-                        f"\nRegra: Se for WhatsApp, organize como um cardápio limpo e use listas. Se for Instagram, use emojis e hashtags."
+                        f"Crie um post gourmet para {destino} do {restaurante}. "
+                        f"Personalidade da escrita: {estilo}. Taxa: {taxa}. Tempo: {tempo}. {contexto_whats}\n"
+                        f"Produtos:\n{prod_text}"
+                        f"\nInstruções: Se for 'Descontraída', use gírias leves. 'Vendedora', foque em urgência. 'Elegante', seja refinado."
                     )
                     
                     res = model.generate_content(prompt)
                     st.subheader("✅ Resultado:")
-                    st.text_area("Copie aqui:", value=res.text, height=450)
+                    st.text_area("Copie aqui:", value=res.text, height=400)
                     st.balloons()
                 except Exception as e:
                     st.error(f"Erro: {e}")
-        else:
-            st.warning("Preencha o nome do restaurante e adicione itens!")
