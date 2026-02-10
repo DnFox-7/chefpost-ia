@@ -8,10 +8,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
-# Sua chave nova gerada em projeto limpo
 API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
-
-# transport='rest' é o segredo para evitar o erro 404 da versão v1beta
+# Forçando transporte REST para estabilidade
 genai.configure(api_key=API_KEY_GEMINI, transport='rest')
 
 # --- 3. DESIGN E CSS ---
@@ -30,28 +28,20 @@ st.markdown("""
 def verificar_plano(email):
     try:
         res = supabase.table("perfis_clientes").select("plano_ativo").eq("email", email).execute()
-        if res.data and len(res.data) > 0:
-            return res.data[0]['plano_ativo']
-        return False
-    except:
-        return False
+        return res.data[0]['plano_ativo'] if res.data else False
+    except: return False
 
 def cadastrar_no_banco(email):
-    try:
-        supabase.table("perfis_clientes").insert({"email": email, "plano_ativo": False}).execute()
-    except:
-        pass
+    try: supabase.table("perfis_clientes").insert({"email": email, "plano_ativo": False}).execute()
+    except: pass
 
-# --- 5. SISTEMA DE LOGIN / CADASTRO ---
-if 'user' not in st.session_state:
-    st.session_state.user = None
-
+# --- 5. LOGIN ---
+if 'user' not in st.session_state: st.session_state.user = None
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.title("🥘 ChefPost IA")
         aba_log, aba_cad = st.tabs(["Login", "Criar Conta"])
-        
         with aba_log:
             e = st.text_input("E-mail")
             s = st.text_input("Senha", type="password")
@@ -63,43 +53,24 @@ if st.session_state.user is None:
                         st.rerun()
                     else:
                         st.warning("⚠️ Conta aguardando ativação.")
-                        st.markdown(f"""
-                        <div class="pix-box">
-                            <h4 style="color: #FF4B2B; margin:0;">🚀 Ative seu acesso agora!</h4>
-                            <p><b>Valor: R$ 47,00/mês</b></p>
-                            <p><b>Chave PIX:</b> danillo.lima328@gmail.com</p>
-                            <hr>
-                            <a href="https://wa.me/5511999999999" target="_blank">
-                                <button style="background-color: #25D366; color: white; border: none; padding: 10px 20px; border-radius: 5px; width: 100%;">
-                                    ✅ Enviar Comprovante
-                                </button>
-                            </a>
-                        </div>
-                        """, unsafe_allow_html=True)
-                except:
-                    st.error("E-mail ou senha incorretos.")
-
+                        st.info("PIX: danillo.lima328@gmail.com")
+                except: st.error("E-mail ou senha incorretos.")
         with aba_cad:
-            e_c = st.text_input("Seu melhor e-mail", key="cad_email")
-            s_c = st.text_input("Crie uma senha", type="password", key="cad_senha")
+            e_c = st.text_input("E-mail", key="cad_e")
+            s_c = st.text_input("Senha", type="password", key="cad_s")
             if st.button("Registrar"):
                 try:
                     supabase.auth.sign_up({"email": e_c, "password": s_c})
                     cadastrar_no_banco(e_c)
-                    st.success("✅ Conta criada! Faça login para ativar.")
-                except Exception as ex:
-                    st.error(f"Erro ao cadastrar: {ex}")
-
+                    st.success("✅ Criada! Faça login.")
+                except Exception as ex: st.error(f"Erro: {ex}")
 else:
-    # --- 6. O APLICATIVO ---
+    # --- 6. APP ---
     with st.sidebar:
         st.header("👨‍🍳 Painel")
-        st.write(f"Logado como: {st.session_state.user.user.email}")
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
-        
-        st.divider()
         restaurante = st.text_input("Restaurante")
         formato = st.radio("Formato", ["Individual", "Cardápio WhatsApp"])
         taxa = st.text_input("Taxa Entrega", "Grátis")
@@ -107,44 +78,29 @@ else:
 
     st.title("🚀 Gerador de Conteúdo")
     num = st.number_input("Quantos produtos?", 1, 10, 1)
-    
     itens = []
     for i in range(num):
         st.markdown(f'<div class="item-card"><b>PRODUTO #{i+1}</b>', unsafe_allow_html=True)
         c1, c2 = st.columns([3, 1])
-        with c1: 
-            n = st.text_input("Nome", key=f"n{i}")
-        with c2: 
-            p = st.text_input("Preço", key=f"p{i}")
+        with c1: n = st.text_input("Nome", key=f"n{i}")
+        with c2: p = st.text_input("Preço", key=f"p{i}")
         d = st.text_input("Descrição", key=f"d{i}")
-        if n:
-            itens.append({"nome": n, "preco": p, "desc": d})
+        if n: itens.append({"nome": n, "preco": p, "desc": d})
         st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
-            with st.spinner("Chef preparando sua legenda..."):
+            with st.spinner("Chef IA preparando..."):
                 try:
-                    # Usando gemini-1.5-flash puro com transport REST
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # ATUALIZADO PARA O MODELO QUE APARECEU NA SUA LISTA
+                    model = genai.GenerativeModel('gemini-3-flash-preview')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    prompt = f"Crie um post para Instagram para o restaurante {restaurante}. Itens: {p_text}. Delivery: {taxa}. Seja criativo, use emojis e hashtags."
+                    prompt = f"Atue como Social Media Gourmet. Crie um post para {restaurante}. Itens: {p_text}. Delivery: {taxa}. Use emojis."
                     
                     res = model.generate_content(prompt)
-                    
-                    if res.text:
-                        st.subheader("✅ Conteúdo Gerado:")
-                        st.text_area("Copie aqui:", value=res.text, height=400)
-                    else:
-                        st.error("Resposta vazia da IA.")
-
+                    st.subheader("✅ Conteúdo Gerado:")
+                    st.text_area("Copiado:", value=res.text, height=400)
                 except Exception as e:
                     st.error(f"Erro na IA: {e}")
-                    # Mostra os modelos para confirmar acesso
-                    try:
-                        ms = [m.name for m in genai.list_models()]
-                        st.info(f"Modelos acessíveis: {ms}")
-                    except: pass
-        else:
-            st.warning("⚠️ Preencha o restaurante e os itens.")
+        else: st.warning("⚠️ Preencha os dados!")
