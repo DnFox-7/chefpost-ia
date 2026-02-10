@@ -8,6 +8,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- 2. CONFIGURAÇÃO GEMINI ---
+# Verifique se esta chave está correta conforme o Google AI Studio
 API_KEY_GEMINI = "AIzaSyAWeO6CpkGvhghUZa_T5FY2o8Jw2fcRzL8"
 genai.configure(api_key=API_KEY_GEMINI)
 
@@ -19,6 +20,7 @@ st.markdown("""
     .item-card { background-color: rgba(128, 128, 128, 0.1); padding: 20px; border-radius: 15px; border: 2px solid #FF4B2B; margin-bottom: 25px; }
     .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; height: 50px; width: 100%; border-radius: 10px; }
     .stTextArea textarea { background-color: #111 !important; color: #FFF !important; }
+    .pix-box { background-color: #1e1e1e; padding: 20px; border-radius: 10px; border: 1px solid #FF4B2B; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,18 +60,33 @@ if st.session_state.user is None:
                         st.session_state.user = res
                         st.rerun()
                     else:
-                        st.error("🚫 Acesso Pendente. Realize o pagamento para ativar sua conta.")
+                        st.warning("⚠️ Sua conta está aguardando ativação.")
+                        st.markdown(f"""
+                        <div class="pix-box">
+                            <h4 style="color: #FF4B2B; margin:0;">🚀 Ative seu acesso agora!</h4>
+                            <p>Realize o pagamento para liberar o gerador de posts:</p>
+                            <p><b>Valor: R$ 47,00/mês</b></p>
+                            <p><b>Chave PIX (E-mail):</b> danillo.lima328@gmail.com</p>
+                            <hr>
+                            <p>Envie o comprovante para o WhatsApp abaixo:</p>
+                            <a href="https://wa.me/5511999999999" target="_blank">
+                                <button style="background-color: #25D366; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%;">
+                                    ✅ Enviar Comprovante
+                                </button>
+                            </a>
+                        </div>
+                        """, unsafe_allow_html=True)
                 except:
                     st.error("E-mail ou senha incorretos.")
 
         with aba_cad:
-            e_c = st.text_input("Seu melhor e-mail")
-            s_c = st.text_input("Crie uma senha (mín. 6 dígitos)", type="password")
+            e_c = st.text_input("Seu melhor e-mail", key="cad_email")
+            s_c = st.text_input("Crie uma senha (mín. 6 dígitos)", type="password", key="cad_senha")
             if st.button("Registrar"):
                 try:
                     supabase.auth.sign_up({"email": e_c, "password": s_c})
                     cadastrar_no_banco(e_c)
-                    st.success("✅ Conta criada! Após o pagamento, seu acesso será liberado.")
+                    st.success("✅ Conta criada! Realize o login para ver os dados de ativação.")
                 except Exception as ex:
                     st.error(f"Erro ao cadastrar: {ex}")
 
@@ -112,31 +129,32 @@ else:
 
     if st.button("🚀 GERAR AGORA"):
         if restaurante and itens:
-            with st.spinner("Chef preparando..."):
+            with st.spinner("Chef IA preparando sua legenda..."):
                 try:
-                    # ALTERAÇÃO PARA ESTABILIDADE: Nome limpo do modelo
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # CONFIGURAÇÃO DE MODELO ESTÁVEL
+                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
                     prompt = (
-                        f"Atue como um redator publicitário de alto nível especializado em gastronomia. "
-                        f"Crie um post para o restaurante {restaurante}. "
-                        f"Formato solicitado: {formato}. "
-                        f"Itens do cardápio: {p_text}. "
-                        f"Detalhes: Entrega {taxa}, Tempo {tempo}. {dia} {horario}. "
-                        f"Use uma linguagem que desperte o apetite, emojis e hashtags estratégicas."
+                        f"Atue como um Social Media Copywriter Gastronômico. "
+                        f"Crie um post atraente para o restaurante {restaurante}. "
+                        f"Formato: {formato}. Produtos: {p_text}. "
+                        f"Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. "
+                        f"Use emojis que despertem desejo, uma linguagem persuasiva e hashtags de comida."
                     )
                     
                     res = model.generate_content(prompt)
                     
                     if res.text:
-                        st.text_area("Copiado com Sucesso:", value=res.text, height=400)
+                        st.subheader("✅ Conteúdo Gerado:")
+                        st.text_area("Copie aqui:", value=res.text, height=400)
+                        st.success("Prontinho! Agora é só postar e vender.")
                     else:
-                        st.warning("A IA não gerou texto. Tente clicar no botão novamente.")
+                        st.error("A IA não retornou texto. Tente clicar no botão novamente.")
 
                 except Exception as e:
                     st.error(f"Erro na IA: {e}")
-                    st.info("Dica: Se o erro for 404, tente reiniciar o App no painel do Streamlit.")
+                    st.info("💡 Dica: Se o erro for 404, faça um 'Reboot App' no painel do Streamlit.")
         else:
-            st.warning("Preencha o nome do restaurante e adicione pelo menos um produto.")
+            st.warning("⚠️ Preencha o nome do restaurante e adicione os itens.")
