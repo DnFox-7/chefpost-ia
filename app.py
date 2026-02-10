@@ -48,7 +48,6 @@ else:
             ["Instagram (Feed/Reels)", "WhatsApp (Cardápio)", "iFood", "Facebook Ads"]
         )
         
-        # Campos de Cardápio para WhatsApp
         dias, horas = "", ""
         if "WhatsApp" in destino:
             st.info("📅 Detalhes do Cardápio")
@@ -57,13 +56,14 @@ else:
         
         st.divider()
         
-        # --- VOLTANDO PARA O PADRÃO MASCULINO ---
         estilo = st.select_slider(
             "Estilo da Escrita", 
             options=["Descontraído", "Persuasivo", "Gourmet"]
         )
         
-        taxa = st.text_input("Taxa de Entrega", "Grátis")
+        # --- MUDANÇA SOLICITADA: Taxa começa com "A consultar" ---
+        taxa = st.text_input("Taxa de Entrega", "A consultar")
+        
         tempo = st.text_input("Tempo Estimado", "30-50 min")
         
         if st.button("Sair"):
@@ -88,7 +88,6 @@ else:
         if restaurante and itens:
             with st.spinner("Chef IA preparando sua copy..."):
                 try:
-                    # Usando o modelo topo de linha Gemini 3 Flash
                     model = genai.GenerativeModel('gemini-3-flash-preview')
                     
                     prod_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
@@ -98,12 +97,12 @@ else:
                         f"Atue como um redator publicitário focado em gastronomia. "
                         f"Crie um post para {destino} do restaurante {restaurante}. "
                         f"O estilo de escrita deve ser {estilo}. "
-                        f"Informações: Taxa {taxa}, Tempo {tempo}. {contexto_whats}\n"
+                        f"Informações: Taxa de entrega {taxa}, Tempo {tempo}. {contexto_whats}\n"
                         f"Cardápio do Post:\n{prod_text}"
                         f"\nDiretrizes:\n"
-                        f"- Estilo Descontraído: Use emojis, seja amigável e use gírias leves.\n"
-                        f"- Estilo Persuasivo: Foque no desejo, use gatilhos mentais e chame para ação (CTA).\n"
-                        f"- Estilo Gourmet: Seja elegante, descritivo e use menos emojis."
+                        f"- Estilo Descontraído: Use emojis e linguagem amigável.\n"
+                        f"- Estilo Persuasivo: Foque em gatilhos mentais e desejo.\n"
+                        f"- Estilo Gourmet: Seja elegante e descritivo."
                     )
                     
                     res = model.generate_content(prompt)
