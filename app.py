@@ -12,19 +12,19 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 API_KEY_GEMINI = "AIzaSyBNI6HOmI4YPCO88XCxdDl4krCwuGR_fSU"
 genai.configure(api_key=API_KEY_GEMINI, transport='rest')
 
-# --- 3. DESIGN ---
+# --- 3. DESIGN E CSS ---
 st.set_page_config(page_title="ChefPost Pro 2026", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
     .item-card { background-color: rgba(255, 75, 43, 0.05); padding: 20px; border-radius: 15px; border: 1px solid #FF4B2B; margin-bottom: 20px; }
-    .copy-area { background: #161b22; color: #c9d1d9; padding: 15px; border-radius: 8px; font-family: sans-serif; white-space: pre-wrap; margin-bottom: 10px; border: 1px solid #30363d; }
+    .copy-area { background: #161b22; color: #c9d1d9; padding: 15px; border-radius: 8px; font-family: sans-serif; white-space: pre-wrap; margin-bottom: 10px; border: 1px solid #30363d; line-height: 1.6; }
     .stButton>button { background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); color: white !important; font-weight: bold; border-radius: 10px; height: 50px; width: 100%; border: none; }
-    .strategy-card { background-color: #1e252e; padding: 20px; border-radius: 10px; border-left: 5px solid #25D366; }
+    .strategy-card { background-color: #1e252e; padding: 20px; border-radius: 10px; border-left: 5px solid #25D366; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FUNÇÕES ---
+# --- 4. FUNÇÃO BOTÃO DE COPIAR (JS) ---
 def copy_button(text, key):
     safe_text = text.replace("`", "'").replace("\n", "\\n").replace('"', '\\"')
     html_code = f"""
@@ -46,106 +46,141 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LOGIN (Simplificado para o exemplo) ---
+# --- 5. FUNÇÕES DE ACESSO ---
+def verificar_plano(email):
+    try:
+        res = supabase.table("perfis_clientes").select("plano_ativo").eq("email", email).execute()
+        return res.data[0]['plano_ativo'] if res.data else False
+    except: return False
+
+def cadastrar_perfil(email):
+    try: supabase.table("perfis_clientes").insert({"email": email, "plano_ativo": False}).execute()
+    except: pass
+
+# --- 6. SISTEMA DE LOGIN E CADASTRO ---
 if 'user' not in st.session_state: st.session_state.user = None
+
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.title("🥘 ChefPost IA")
-        e = st.text_input("E-mail")
-        s = st.text_input("Senha", type="password")
-        if st.button("Entrar"):
-            try:
-                res = supabase.auth.sign_in_with_password({"email": e, "password": s})
-                st.session_state.user = res
-                st.rerun()
-            except: st.error("Login inválido.")
+        aba_log, aba_cad = st.tabs(["Login", "Criar Conta"])
+        with aba_log:
+            e = st.text_input("E-mail", key="l_e")
+            s = st.text_input("Senha", type="password", key="l_s")
+            if st.button("Entrar"):
+                try:
+                    res = supabase.auth.sign_in_with_password({"email": e, "password": s})
+                    if verificar_plano(e):
+                        st.session_state.user = res
+                        st.rerun()
+                    else: st.warning("Aguardando ativação (PIX: danillo.lima328@gmail.com)")
+                except: st.error("Dados incorretos.")
+        with aba_cad:
+            e_c = st.text_input("E-mail", key="c_e")
+            s_c = st.text_input("Senha", type="password", key="c_s")
+            if st.button("Registrar"):
+                try:
+                    supabase.auth.sign_up({"email": e_c, "password": s_c})
+                    cadastrar_perfil(e_c)
+                    st.success("Conta criada! Faça login para continuar.")
+                except Exception as ex: st.error(f"Erro: {ex}")
 else:
-    # --- 6. PAINEL LATERAL ---
+    # --- 7. APP PRINCIPAL ---
     with st.sidebar:
         st.header("👨‍🍳 Configurações")
-        restaurante = st.text_input("Nome do Restaurante", placeholder="Ex: Pizzaria Gourmet")
-        tipo_comida = st.selectbox("Tipo de Cozinha", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana"])
+        restaurante = st.text_input("Nome do Restaurante", placeholder="Ex: Burger King")
+        tipo_comida = st.selectbox("Tipo de Cozinha", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana", "Churrascaria"])
         st.divider()
+        destino = st.selectbox("Canal Principal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
+        
+        dias, horas = "", ""
+        if "WhatsApp" in destino:
+            dias = st.multiselect("Dias", ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], default=["Sex", "Sáb", "Dom"])
+            horas = st.text_input("Horário", "18h às 23h")
+            
         estilo = st.select_slider("Estilo da Escrita", options=["Descontraído", "Persuasivo", "Gourmet"])
+        taxa = st.text_input("Taxa de Entrega", "A consultar")
+        tempo = st.text_input("Tempo Estimado", "30-50 min")
+        
         if st.button("Sair"):
             st.session_state.user = None
             st.rerun()
 
-    # --- 7. ABAS PRINCIPAIS ---
     tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia & Tráfego"])
 
+    # --- ABA 1: GERADOR ---
     with tab_gerador:
-        st.subheader("Crie legendas para seus produtos")
-        num = st.number_input("Quantos produtos?", 1, 10, 1)
+        st.subheader("Crie legendas individuais por produto")
+        num = st.number_input("Quantos produtos diferentes?", 1, 10, 1)
+        
         itens = []
         for i in range(num):
             st.markdown(f'<div class="item-card">', unsafe_allow_html=True)
             c1, c2 = st.columns([3, 1])
-            with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}")
-            with c2: p = st.text_input(f"Preço", key=f"p{i}")
-            d = st.text_area(f"Descrição", key=f"d{i}", height=70)
+            with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}", placeholder="Nome")
+            with c2: p = st.text_input(f"Preço", key=f"p{i}", placeholder="0,00")
+            d = st.text_area(f"O que vem nele?", key=f"d{i}", height=70, placeholder="Ingredientes...")
             if n: itens.append({"nome": n, "preco": p, "desc": d})
             st.markdown('</div>', unsafe_allow_html=True)
 
-       if st.button("✨ GERAR LEGENDAS"):
-        if restaurante and itens:
-            with st.spinner("Chef IA preparando suas legendas..."):
-                try:
-                    model = genai.GenerativeModel('gemini-3-flash-preview')
-                    
-                    # Montamos um único pedido para a IA não travar por excesso de requisições
-                    lista_produtos = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                    
-                    prompt = (
-                        f"Você é um copywriter gourmet. Gere legendas INDIVIDUAIS para cada produto abaixo do restaurante {restaurante}. "
-                        f"Estilo: {estilo}. Canal: {destino}. Taxa: {taxa}. Tempo: {tempo}.\n"
-                        f"Produtos:\n{lista_produtos}\n"
-                        f"IMPORTANTE: Separe cada legenda com o marcador '---PRODUTO---'. Não misture os textos."
-                    )
-                    
-                    res = model.generate_content(prompt)
-                    # Separamos o texto da IA usando o marcador que pedimos
-                    legendas_separadas = res.text.split('---PRODUTO---')
-                    
-                    # Limpamos espaços vazios da lista
-                    legendas_separadas = [l.strip() for l in legendas_separadas if l.strip()]
-
-                    st.divider()
-                    
-                    for idx, texto_legenda in enumerate(legendas_separadas):
-                        # Tentamos pegar o nome do produto para o título, se não houver, usamos o índice
-                        nome_display = itens[idx]['nome'] if idx < len(itens) else f"Sugestão {idx+1}"
-                        
-                        st.markdown(f"### 📦 {nome_display}")
-                        st.markdown(f'<div class="copy-area">{texto_legenda}</div>', unsafe_allow_html=True)
-                        copy_button(texto_legenda, f"leg_{idx}")
-                        st.divider()
-
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"Eita! A API está ocupada. Tente novamente em 10 segundos. Erro: {e}")
-            if st.button("📅 GERAR CALENDÁRIO DA SEMANA"):
-                if restaurante:
-                    with st.spinner("Criando seu plano de postagens..."):
+        if st.button("✨ GERAR TODAS AS LEGENDAS"):
+            if restaurante and itens:
+                with st.spinner("Chef IA preparando..."):
+                    try:
                         model = genai.GenerativeModel('gemini-3-flash-preview')
-                        prompt = f"Crie um calendário de postagens de 7 dias para um(a) {tipo_comida} chamado {restaurante}. Sugira o tema do post e a legenda para cada dia."
+                        
+                        # ANTI-FLOOD: Criamos uma lista para pedir tudo em uma chamada só
+                        lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
+                        info_func = f"Atendimento: {', '.join(dias)} - {horas}" if dias else ""
+                        
+                        prompt = (
+                            f"Você é um copywriter de elite para restaurantes. Gere legendas INDIVIDUAIS para cada produto do {restaurante}. "
+                            f"Estilo: {estilo}. Canal: {destino}. Taxa: {taxa}. Tempo: {tempo}. {info_func}\n"
+                            f"Produtos:\n{lista_p}\n"
+                            f"REGRAS: Separe as legendas apenas com a palavra-chave '---SEPARAR---'. "
+                            f"Não inclua introduções, vá direto para as legendas."
+                        )
+                        
                         res = model.generate_content(prompt)
+                        # Fatiamos o texto da IA para criar os blocos individuais
+                        legendas = [l.strip() for l in res.text.split('---SEPARAR---') if l.strip()]
+                        
+                        st.divider()
+                        for idx, texto in enumerate(legendas):
+                            nome_prod = itens[idx]['nome'] if idx < len(itens) else f"Sugestão {idx+1}"
+                            st.markdown(f"### 📦 {nome_prod}")
+                            st.markdown(f'<div class="copy-area">{texto}</div>', unsafe_allow_html=True)
+                            copy_button(texto, f"btn_leg_{idx}")
+                            st.divider()
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Erro na API (Tente novamente): {e}")
+            else: st.warning("Preencha o nome do restaurante e adicione produtos!")
+
+    # --- ABA 2: ESTRATÉGIA ---
+    with tab_estrategia:
+        st.subheader("Consultoria de Marketing Digital")
+        col_c1, col_c2 = st.columns(2)
+        
+        with col_c1:
+            if st.button("📅 GERAR PLANO SEMANAL"):
+                if restaurante:
+                    with st.spinner("Planejando..."):
+                        model = genai.GenerativeModel('gemini-3-flash-preview')
+                        res = model.generate_content(f"Crie um calendário de 7 dias de posts para {restaurante} ({tipo_comida}). O que postar nos Stories e Feed.")
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
                         st.markdown(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
-                        copy_button(res.text, "cal_sem")
-                else: st.warning("Digite o nome do restaurante no painel lateral.")
-
-        with c2:
-            if st.button("📢 SUGERIR PÚBLICO PARA ANÚNCIOS"):
+                        copy_button(res.text, "plan_sem")
+        
+        with col_c2:
+            if st.button("📢 CONFIGURAÇÃO DE ANÚNCIOS"):
                 if restaurante:
-                    with st.spinner("Analisando seu público ideal..."):
+                    with st.spinner("Analisando tráfego..."):
                         model = genai.GenerativeModel('gemini-3-flash-preview')
-                        prompt = f"Sugira a configuração de público para anúncios no Facebook/Instagram Ads para um(a) {tipo_comida}. Inclua interesses, raio de distância e o tipo de criativo que mais converte."
-                        res = model.generate_content(prompt)
+                        res = model.generate_content(f"Sugira público-alvo, interesses e raio de entrega para anúncios de {tipo_comida} no Facebook Ads.")
                         st.markdown('<div class="strategy-card" style="border-left-color: #FF4B2B;">', unsafe_allow_html=True)
                         st.markdown(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
                         copy_button(res.text, "ads_sug")
-                else: st.warning("Digite o nome do restaurante no painel lateral.")
