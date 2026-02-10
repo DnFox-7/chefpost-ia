@@ -118,18 +118,23 @@ else:
         if restaurante and itens:
             with st.spinner("Chef preparando..."):
                 try:
-                    # Usando o modelo flash
-                    model = genai.GenerativeModel(model_name='gemini-1.5-pro')
+                    # Mudança crucial: Usando o nome exato que o Google exige
+                    # para evitar o erro 404 na v1beta
+                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
                     
                     p_text = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                     
-                    prompt = f"Atue como um Social Media Gourmet. Crie um post para o restaurante {restaurante}. Formato: {formato}. Itens: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis estrategicos e chamadas para ação."
+                    prompt = f"Social Media para {restaurante}. Estilo Gourmet/Divertido. Formato: {formato}. Produtos: {p_text}. Entrega: {taxa}, Tempo: {tempo}. {dia} {horario}. Use emojis e ideias de Reels."
                     
+                    # Forçando a geração sem usar a versão v1beta se possível
                     res = model.generate_content(prompt)
-                    st.text_area("Copiado com Sucesso:", value=res.text, height=400)
+                    
+                    if res.text:
+                        st.text_area("Copiado com Sucesso:", value=res.text, height=400)
+                    else:
+                        st.error("A IA não retornou texto. Verifique sua conexão.")
+                        
                 except Exception as e:
+                    # Se der erro 404 de novo, vamos tentar o modelo mais antigo (pro)
                     st.error(f"Erro na IA: {e}")
-        else:
-            st.warning("Preencha o nome do restaurante e adicione pelo menos um produto.")
-
-
+                    st.info("Dica: Verifique se sua API Key no Google AI Studio está ativa.")
