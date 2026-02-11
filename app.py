@@ -142,7 +142,7 @@ else:
 
     # --- ABA 2: ESTRATÉGIA EVOLUTIVA ---
     with tab_estrategia:
-        st.subheader("📊 Planeamento que não se repete")
+        st.subheader("📊 Planejamento que não se repete")
         col_est1, col_est2 = st.columns(2)
         
         with col_est1:
@@ -182,3 +182,4 @@ else:
                         st.error(f"Erro ao gerar plano: {e}")
             else:
                 st.warning("Preencha o nome do restaurante no painel lateral.")
+
