@@ -2,18 +2,14 @@ import streamlit as st
 import google.generativeai as genai
 from supabase import create_client, Client
 import streamlit.components.v1 as components
-import os
 
 # --- 1. CONFIGURAÇÃO SUPABASE ---
 SUPABASE_URL = "https://msitsrebkgekgqbuclqp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaXRzcmVia2dla2dxYnVjbHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDE3MzgsImV4cCI6MjA4NjMxNzczOH0.AXZbP1hoCMCIwfHBH6iX98jy4XB2FoJp7P6i73ssq2k"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIGURAÇÃO GEMINI (Ajustada para Forçar v1) ---
+# --- 2. CONFIGURAÇÃO GEMINI ---
 API_KEY_GEMINI = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
-
-# FORÇANDO A VERSÃO DA API PARA EVITAR O ERRO 404
-os.environ["GOOGLE_GENERATIVE_AI_NETWORK_ENDPOINT"] = "generativelanguage.googleapis.com"
 genai.configure(api_key=API_KEY_GEMINI)
 
 # --- 3. DESIGN (MANTIDO) ---
@@ -79,7 +75,7 @@ else:
     # --- 6. PAINEL PRINCIPAL ---
     with st.sidebar:
         st.header("👨‍🍳 Painel")
-        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burger King")
+        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burguer House")
         tipo_comida = st.selectbox("Segmento", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana"])
         st.divider()
         destino = st.selectbox("Canal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
@@ -90,7 +86,6 @@ else:
 
     tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia"])
 
-    # --- ABA 1: GERADOR ---
     with tab_gerador:
         num = st.number_input("Quantos produtos?", 1, 10, 1)
         itens = []
@@ -107,13 +102,13 @@ else:
             if restaurante and itens:
                 with st.spinner("Chef IA preparando..."):
                     try:
-                        # TENTATIVA COM NOME COMPLETO DO MODELO
-                        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+                        # USANDO O MODELO MAIS COMPATÍVEL DE TODOS PARA DERRUBAR O ERRO 404
+                        model = genai.GenerativeModel('gemini-pro')
                         
                         lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
                         prompt = (f"Gere legendas de venda para o restaurante {restaurante}. Estilo: {estilo}. Canal: {destino}.\n"
                                   f"Produtos:\n{lista_p}\n"
-                                  f"Separe cada legenda com '---SEPARAR---'.")
+                                  f"Separe cada legenda estritamente com o marcador '---SEPARAR---'.")
                         
                         res = model.generate_content(prompt)
                         legendas = [l.strip() for l in res.text.split('---SEPARAR---') if l.strip()]
@@ -126,14 +121,13 @@ else:
                     except Exception as e:
                         st.error(f"Erro ao acessar IA: {e}")
 
-    # --- ABA 2: ESTRATÉGIA ---
     with tab_estrategia:
         if st.button("📅 GERAR PLANO SEMANAL"):
             if restaurante:
                 with st.spinner("Gerando planejamento..."):
                     try:
-                        model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
-                        res = model.generate_content(f"Crie um calendário de posts de 7 dias para {restaurante} ({tipo_comida}).")
+                        model = genai.GenerativeModel('gemini-pro')
+                        res = model.generate_content(f"Crie um calendário de posts para {restaurante} ({tipo_comida}).")
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
                         st.write(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
