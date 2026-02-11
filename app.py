@@ -8,11 +8,20 @@ SUPABASE_URL = "https://msitsrebkgekgqbuclqp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaXRzcmVia2dla2dxYnVjbHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDE3MzgsImV4cCI6MjA4NjMxNzczOH0.AXZbP1hoCMCIwfHBH6iX98jy4XB2FoJp7P6i73ssq2k"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIGURAÇÃO GEMINI ---
-API_KEY_GEMINI = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
-genai.configure(api_key=API_KEY_GEMINI)
+# --- 2. CONFIGURAÇÃO GEMINI (SUA CHAVE NOVA) ---
+API_KEY = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
+genai.configure(api_key=API_KEY)
 
-# --- 3. DESIGN (MANTIDO) ---
+# A FUNÇÃO MÁGICA QUE VOCÊ ME MANDOU:
+def get_model():
+    # Esta função varre os modelos disponíveis e pega o que funciona
+    modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    for m in modelos:
+        if "flash" in m:
+            return genai.GenerativeModel(m)
+    return genai.GenerativeModel(modelos[0])
+
+# --- 3. ESTILO VISUAL (SEU LAYOUT PRESERVADO) ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
@@ -28,27 +37,21 @@ st.markdown("""
 def copy_button(text, key):
     safe_text = text.replace("`", "'").replace("\n", "\\n").replace('"', '\\"')
     html_code = f"""
-    <button id="btn-{key}" onclick="copyToClipboard('{key}')" style="
-        width: 100%; background-color: #25D366; color: white; border: none; padding: 12px;
-        border-radius: 8px; font-weight: bold; cursor: pointer; display: flex;
-        align-items: center; justify-content: center; gap: 10px; font-family: sans-serif;
-    "> 📋 COPIAR TEXTO </button>
+    <button id="btn-{key}" onclick="copyToClipboard('{key}')" style="width: 100%; background-color: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;"> 📋 COPIAR TEXTO </button>
     <script>
     function copyToClipboard(key) {{
         const text = "{safe_text}";
         navigator.clipboard.writeText(text).then(() => {{
             const btn = document.getElementById('btn-' + key);
             btn.innerHTML = '✅ COPIADO!';
-            btn.style.backgroundColor = '#128C7E';
-            setTimeout(() => {{ btn.innerHTML = '📋 COPIAR TEXTO'; btn.style.backgroundColor = '#25D366'; }}, 2000);
+            setTimeout(() => {{ btn.innerHTML = '📋 COPIAR TEXTO'; }}, 2000);
         }});
     }}
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LOGIN ---
+# --- 5. LÓGICA DE LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
-
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
@@ -72,7 +75,7 @@ if st.session_state.user is None:
                     st.success("Conta criada! Tente logar.")
                 except Exception as ex: st.error(f"Erro: {ex}")
 else:
-    # --- 6. PAINEL PRINCIPAL ---
+    # --- 6. PAINEL DO CHEF ---
     with st.sidebar:
         st.header("👨‍🍳 Painel")
         restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burguer House")
@@ -94,7 +97,7 @@ else:
             c1, c2 = st.columns([3, 1])
             with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}")
             with c2: p = st.text_input(f"Preço", key=f"p{i}")
-            d = st.text_area(f"Descrição", key=f"d{i}", height=70)
+            d = st.text_area(f"O que tem nele?", key=f"d{i}", height=70)
             if n: itens.append({"nome": n, "preco": p, "desc": d})
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -102,12 +105,12 @@ else:
             if restaurante and itens:
                 with st.spinner("Chef IA preparando..."):
                     try:
-                        # USANDO O MODELO MAIS COMPATÍVEL DE TODOS PARA DERRUBAR O ERRO 404
-                        model = genai.GenerativeModel('gemini-pro')
+                        # USANDO A SUA LÓGICA QUE FUNCIONA:
+                        model = get_model()
                         
                         lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                        prompt = (f"Gere legendas de venda para o restaurante {restaurante}. Estilo: {estilo}. Canal: {destino}.\n"
-                                  f"Produtos:\n{lista_p}\n"
+                        prompt = (f"Atue como redator profissional. Gere legendas de venda para o restaurante {restaurante}. "
+                                  f"Estilo: {estilo}. Canal: {destino}.\nProdutos:\n{lista_p}\n"
                                   f"Separe cada legenda estritamente com o marcador '---SEPARAR---'.")
                         
                         res = model.generate_content(prompt)
@@ -126,7 +129,7 @@ else:
             if restaurante:
                 with st.spinner("Gerando planejamento..."):
                     try:
-                        model = genai.GenerativeModel('gemini-pro')
+                        model = get_model()
                         res = model.generate_content(f"Crie um calendário de posts para {restaurante} ({tipo_comida}).")
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
                         st.write(res.text)
