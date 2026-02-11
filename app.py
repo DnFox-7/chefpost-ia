@@ -8,20 +8,22 @@ SUPABASE_URL = "https://msitsrebkgekgqbuclqp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaXRzcmVia2dla2dxYnVjbHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDE3MzgsImV4cCI6MjA4NjMxNzczOH0.AXZbP1hoCMCIwfHBH6iX98jy4XB2FoJp7P6i73ssq2k"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIGURAÇÃO GEMINI (SUA CHAVE NOVA) ---
+# --- 2. CONFIGURAÇÃO GEMINI ---
 API_KEY = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
 genai.configure(api_key=API_KEY)
 
-# A FUNÇÃO MÁGICA QUE VOCÊ ME MANDOU:
 def get_model():
-    # Esta função varre os modelos disponíveis e pega o que funciona
-    modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    for m in modelos:
-        if "flash" in m:
-            return genai.GenerativeModel(m)
-    return genai.GenerativeModel(modelos[0])
+    # Esta função garante que o código use sempre o modelo disponível na sua conta
+    try:
+        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        for m in modelos:
+            if "flash" in m:
+                return genai.GenerativeModel(m)
+        return genai.GenerativeModel(modelos[0])
+    except:
+        return genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 3. ESTILO VISUAL (SEU LAYOUT PRESERVADO) ---
+# --- 3. ESTILO VISUAL (LAYOUT DARK PREMIUM) ---
 st.set_page_config(page_title="ChefPost Pro", page_icon="🥘", layout="wide")
 st.markdown("""
     <style>
@@ -50,8 +52,9 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=65)
 
-# --- 5. LÓGICA DE LOGIN ---
+# --- 5. LÓGICA DE ACESSO ---
 if 'user' not in st.session_state: st.session_state.user = None
+
 if st.session_state.user is None:
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
@@ -72,46 +75,57 @@ if st.session_state.user is None:
             if st.button("Registrar"):
                 try:
                     supabase.auth.sign_up({"email": e_c, "password": s_c})
-                    st.success("Conta criada! Tente logar.")
+                    st.success("Conta criada! Já pode fazer login.")
                 except Exception as ex: st.error(f"Erro: {ex}")
 else:
-    # --- 6. PAINEL DO CHEF ---
+    # --- 6. PAINEL LATERAL (CONFIGURAÇÕES) ---
     with st.sidebar:
-        st.header("👨‍🍳 Painel")
-        restaurante = st.text_input("Nome da Loja", placeholder="Ex: Burguer House")
+        st.header("👨‍🍳 Configurações")
+        restaurante = st.text_input("Nome da Loja")
         tipo_comida = st.selectbox("Segmento", ["Hamburgueria", "Pizzaria", "Japonesa", "Marmitaria", "Doceria", "Italiana"])
+        
         st.divider()
-        destino = st.selectbox("Canal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
-        estilo = st.select_slider("Estilo", options=["Descontraído", "Persuasivo", "Gourmet"])
-        if st.button("Sair"):
+        st.subheader("📅 Funcionamento")
+        dias_semana = st.multiselect("Dias que Abre", ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], default=["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"])
+        horario = st.text_input("Horário (Ex: 18h às 23h)")
+        entrega = st.text_input("Entrega (Ex: Grátis, R$ 5,00 ou iFood)")
+
+        st.divider()
+        destino = st.selectbox("Canal Principal", ["Instagram", "WhatsApp", "iFood", "Facebook Ads"])
+        estilo = st.select_slider("Estilo da Escrita", options=["Descontraído", "Persuasivo", "Gourmet"])
+        
+        if st.button("Sair da Conta"):
             st.session_state.user = None
             st.rerun()
 
-    tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia"])
+    tab_gerador, tab_estrategia = st.tabs(["🚀 Gerador de Legendas", "📊 Estratégia Evolutiva"])
 
+    # --- ABA 1: GERADOR DE LEGENDAS ---
     with tab_gerador:
-        num = st.number_input("Quantos produtos?", 1, 10, 1)
+        num = st.number_input("Quantos produtos quer anunciar?", 1, 10, 1)
         itens = []
         for i in range(num):
             st.markdown(f'<div class="item-card">', unsafe_allow_html=True)
             c1, c2 = st.columns([3, 1])
             with c1: n = st.text_input(f"Produto {i+1}", key=f"n{i}")
             with c2: p = st.text_input(f"Preço", key=f"p{i}")
-            d = st.text_area(f"O que tem nele?", key=f"d{i}", height=70)
+            d = st.text_area(f"Descrição/Diferenciais", key=f"d{i}", height=70)
             if n: itens.append({"nome": n, "preco": p, "desc": d})
             st.markdown('</div>', unsafe_allow_html=True)
 
         if st.button("✨ GERAR LEGENDAS"):
             if restaurante and itens:
-                with st.spinner("Chef IA preparando..."):
+                with st.spinner("O Chef IA está a escrever..."):
                     try:
-                        # USANDO A SUA LÓGICA QUE FUNCIONA:
                         model = get_model()
-                        
                         lista_p = "".join([f"- {x['nome']} (R$ {x['preco']}): {x['desc']}\n" for x in itens])
-                        prompt = (f"Atue como redator profissional. Gere legendas de venda para o restaurante {restaurante}. "
-                                  f"Estilo: {estilo}. Canal: {destino}.\nProdutos:\n{lista_p}\n"
-                                  f"Separe cada legenda estritamente com o marcador '---SEPARAR---'.")
+                        dias_str = ", ".join(dias_semana)
+                        
+                        prompt = (f"Atue como redator de gastronomia. Gere legendas para o restaurante {restaurante}.\n"
+                                  f"Dados: Abre em {dias_str} | Horário: {horario} | Entrega: {entrega}.\n"
+                                  f"Canal: {destino} | Estilo: {estilo}.\n"
+                                  f"Produtos:\n{lista_p}\n"
+                                  f"Inclua CTAs claros e separe com '---SEPARAR---'.")
                         
                         res = model.generate_content(prompt)
                         legendas = [l.strip() for l in res.text.split('---SEPARAR---') if l.strip()]
@@ -122,18 +136,49 @@ else:
                             copy_button(texto, f"btn_leg_{idx}")
                         st.balloons()
                     except Exception as e:
-                        st.error(f"Erro ao acessar IA: {e}")
+                        st.error(f"Erro: {e}")
+            else:
+                st.warning("Preencha o nome do restaurante e adicione produtos!")
 
+    # --- ABA 2: ESTRATÉGIA EVOLUTIVA ---
     with tab_estrategia:
-        if st.button("📅 GERAR PLANO SEMANAL"):
+        st.subheader("📊 Planeamento que não se repete")
+        col_est1, col_est2 = st.columns(2)
+        
+        with col_est1:
+            fase_mes = st.selectbox("Em que fase estamos?", [
+                "Início do Mês (Novidades e Autoridade)",
+                "Meio do Mês (Engajamento e Prova Social)",
+                "Fim do Mês (Vendas Agressivas e Combos)",
+                "Data Comemorativa / Evento Especial"
+            ])
+        
+        with col_est2:
+            ultimo_tema = st.text_input("O que postou na última semana? (Opcional)", placeholder="Ex: Promoção de pizza de 10 reais")
+
+        if st.button("📅 GERAR ESTRATÉGIA DA SEMANA"):
             if restaurante:
-                with st.spinner("Gerando planejamento..."):
+                with st.spinner("Analisando tendências para o seu segmento..."):
                     try:
                         model = get_model()
-                        res = model.generate_content(f"Crie um calendário de posts para {restaurante} ({tipo_comida}).")
+                        dias_str = ", ".join(dias_semana)
+                        
+                        prompt_est = (
+                            f"Você é um consultor de marketing especializado em {tipo_comida}.\n"
+                            f"Crie um cronograma de 7 dias para o restaurante {restaurante}.\n"
+                            f"Contexto: {fase_mes}.\n"
+                            f"Horário de funcionamento: {horario} em {dias_str}.\n"
+                            f"IMPORTANTE: Na semana passada postamos sobre: {ultimo_tema}. "
+                            f"NÃO REPITA essa estratégia. Traga ideias novas, focadas em Reels e Stories interativos.\n"
+                            f"Formate como um guia prático dia após dia."
+                        )
+                        
+                        res = model.generate_content(prompt_est)
                         st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
-                        st.write(res.text)
+                        st.markdown(res.text)
                         st.markdown('</div>', unsafe_allow_html=True)
-                        copy_button(res.text, "plan_sem")
+                        copy_button(res.text, "plan_evo")
                     except Exception as e:
-                        st.error(f"Erro ao gerar estratégia: {e}")
+                        st.error(f"Erro ao gerar plano: {e}")
+            else:
+                st.warning("Preencha o nome do restaurante no painel lateral.")
